@@ -1,39 +1,49 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import React from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
+import 'expo-router/entry';
+import LoginScreen from './screens/LoginScreen';
+import SignUpScreen from './screens/RegisterScreen';
+import HomeScreen from './screens/HomeScreen';
+import SearchScreen from './screens/SearchScreen';
+import NotificationScreen from './screens/NotificationScreen';
+import AccountScreen from './screens/AccountScreen';
+import EditAccountScreen from './screens/EditAccountScreen';
+import QAScreen from './screens/QAScreen';
+import ProductDetailScreen from './screens/ProductDetailScreen';
+import CategoryScreen from './screens/CategoryScreen';
+import CartScreen from './screens/CartScreen';
+import PaymentScreen from './screens/PaymentScreen';
+import TheScreen from './screens/TheScreen';
+import PlantCareScreen from './screens/PlantCareScreen';
+import PlantCareDetailScreen from './screens/PlantCareDetailScreen';
+import TransactionHistoryScreen from './screens/TransactionHistoryScreen';
+import OrderDetailScreen from './screens/OrderDetailScreen';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+import App from './app';
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+const Stack = createStackNavigator();
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack.Navigator initialRouteName="app">
+      <Stack.Screen name="app" component={App} options={{ headerShown: false }} />
+      <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Notification" component={NotificationScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Account" component={AccountScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="EditAccount" component={EditAccountScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="QA" component={QAScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Category" component={CategoryScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Payment" component={PaymentScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="The" component={TheScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="PlantCareS" component={PlantCareScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="PlantCareDetail" component={PlantCareDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TransactionHistoryS" component={TransactionHistoryScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="OrderDetailScreen" component={OrderDetailScreen} options={{ headerShown: false }} />
+    </Stack.Navigator>
   );
 }
