@@ -19,13 +19,20 @@ import PlantCareDetailScreen from './screens/PlantCareDetailScreen';
 import TransactionHistoryScreen from './screens/TransactionHistoryScreen';
 import OrderDetailScreen from './screens/OrderDetailScreen';
 
-import App from './app';
+// Admin
 
+import AdminProductScreen from './screens/admin/AdminProductScreen';
+import AdminDashboardScreen from './screens/admin/AdminDashboardScreen';
+import AdminCategoryScreen from './screens/admin/AdminCategoryScreen';
+
+import App from './app';
+import { Provider } from 'react-redux'; // Add Provider
+import store from './store'; // Import the Redux store
 const Stack = createStackNavigator();
 
 export default function RootLayout() {
-  return (
-    <Stack.Navigator initialRouteName="app">
+  return (<Provider store={store}>
+    <Stack.Navigator initialRouteName="Login">
       <Stack.Screen name="app" component={App} options={{ headerShown: false }} />
       <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
       <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
@@ -44,6 +51,14 @@ export default function RootLayout() {
       <Stack.Screen name="PlantCareDetail" component={PlantCareDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="TransactionHistoryS" component={TransactionHistoryScreen} options={{ headerShown: false }} />
       <Stack.Screen name="OrderDetailScreen" component={OrderDetailScreen} options={{ headerShown: false }} />
+
+
+      {/* Admin */}
+      <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="AdminProduct" component={AdminProductScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="AdminCategory" component={AdminCategoryScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
+  </Provider>
+  
   );
 }

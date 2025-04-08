@@ -1,17 +1,147 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // For the back arrow icon
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, Alert, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import axios from 'axios';
+import * as ImagePicker from 'expo-image-picker';
+import { useDispatch } from 'react-redux';
+import { setLoginInfo } from '../store/authSlice';
+
+// Define TypeScript interfaces
+interface User {
+    id: string;
+    name: string;
+    email: string;
+    password: string;
+    role: number;
+}
+
+interface Information {
+    id: string;
+    userId: string;
+    address: string;
+    phone: string;
+    avatarUri: string;
+}
 
 const EditInfoScreen: React.FC = () => {
+    const dispatch = useDispatch();
+
     // State for input fields
-    const [name, setName] = useState('Trần Minh Trí');
-    const [email, setEmail] = useState('tranminhtri@gmail.com');
-    const [address, setAddress] = useState('60 Lăng Hà, Bà Điểm, Hóc Môn');
-    const [phone, setPhone] = useState('0123456789');
+    const [name, setName] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
+    const [address, setAddress] = useState<string>('');
+    const [phone, setPhone] = useState<string>('');
+    const [avatarUri, setAvatarUri] = useState<string>('');
+
+    const userId = '1'; // Hardcoded user ID
+    const infoId = '1'; // Hardcoded info ID
+
+    // API endpoints
+    const BASE_URL = 'https://67e5137018194932a584633a.mockapi.io';
+    const USER_API = `${BASE_URL}/users/${userId}`;
+    const INFO_API = `${BASE_URL}/users/${userId}/information/${infoId}`;
+
+    // Fetch initial data
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                console.log('Fetching user data from:', USER_API);
+                const userResponse = await axios.get(USER_API);
+                const userData: User = userResponse.data;
+                setName(userData.name);
+                setEmail(userData.email);
+
+                console.log('Fetching information data from:', INFO_API);
+                const infoResponse = await axios.get(INFO_API);
+                const infoData: Information = infoResponse.data;
+                setAddress(infoData.address);
+                setPhone(infoData.phone);
+                setAvatarUri(infoData.avatarUri);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                Alert.alert('Lỗi', 'Không thể tải thông tin người dùng.');
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    // Request permission and pick image
+    const pickImage = async () => {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permissionResult.granted) {
+            Alert.alert('Lỗi', 'Cần cấp quyền truy cập thư viện ảnh để chọn ảnh!');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            const selectedImageUri = result.assets[0].uri;
+            setAvatarUri(selectedImageUri);
+            console.log('Selected image URI:', selectedImageUri);
+        } else {
+            console.log('Image picking canceled');
+        }
+    };
+
+    // Handle saving updated information
+    const handleSave = async () => {
+        console.log('handleSave triggered');
+
+        if (!name || !email || !address || !phone) {
+            console.log('Validation failed:', { name, email, address, phone });
+            Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin.');
+            return;
+        }
+
+        try {
+            const userResponse = await axios.get(USER_API);
+            const userData: User = userResponse.data;
+            const password = userData.password; // Lấy password hiện tại từ API
+
+            // Update user data
+            const updatedUser: User = {
+                id: userId,
+                name,
+                email,
+                password, // Giữ nguyên password
+                role: 1,
+            };
+            await axios.put(USER_API, updatedUser);
+
+            // Update information data
+            const updatedInfo: Information = {
+                id: infoId,
+                userId,
+                address,
+                phone,
+                avatarUri,
+            };
+            await axios.put(INFO_API, updatedInfo);
+
+            // Cập nhật Redux store
+            dispatch(setLoginInfo({
+                email,
+                password,
+                name,
+            }));
+
+            Alert.alert('Thành công', 'Thông tin đã được cập nhật!');
+        } catch (error: any) {
+            console.error('Error saving data:', error.message, error.response?.data);
+            Alert.alert('Lỗi', `Không thể lưu thông tin: ${error.message}`);
+        }
+    };
 
     return (
         <View style={styles.container}>
-            {/* Header with Back Arrow */}
+            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity>
                     <Ionicons name="arrow-back" size={24} color="black" />
@@ -20,16 +150,18 @@ const EditInfoScreen: React.FC = () => {
             </View>
 
             {/* Scrollable Content */}
-            <ScrollView
-                style={styles.scrollContainer}
-                showsVerticalScrollIndicator={false}
-            >
+            <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
                 {/* Avatar Section */}
                 <View style={styles.avatarContainer}>
-                    <Image
-                        source={{ uri: 'https://s3-alpha-sig.figma.com/img/eae3/13a4/8883a46e7a2a60ee806e73a8052191be?Expires=1743984000&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=oLnaYogC0ug-teGmWxQ-IewlflZprHgKhJv6dry47FsDGQZ~Srnp-bia~aWijx77Yip2YXB2Kb38I5ponmDtj4mYNqYn6itr2nipVJOanyFNxMVZ~ZoHtBzHxD76fOQDCs1lz7ZKiKOTAQu00yhKWkTQXv4ej569fgUed2SvSbnoFOHzoNuyT7LIQ07riKiNecoZFWTT0Ktmhi8d4ShYoaQvSPuRMzSN~mQ~Pbi2HKbmZyn5dZ18Mx-3om-UDVat2mP9aB5yi1sA9eKzNs4epFO99IcuGQkdZLSjvq3NATuAehGuQ8VTLuV7Rtop6cPKqBAxQN1cE70l61S9t0oS9g__' }} // Placeholder for the checkered avatar
-                        style={styles.avatar}
-                    />
+                    <TouchableOpacity onPress={pickImage}>
+                        <Image
+                            source={{ uri: avatarUri || 'https://via.placeholder.com/80' }}
+                            style={styles.avatar}
+                        />
+                        <View style={styles.editIcon}>
+                            <Ionicons name="camera" size={24} color="white" />
+                        </View>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Information Section */}
@@ -42,33 +174,37 @@ const EditInfoScreen: React.FC = () => {
                         style={styles.input}
                         value={name}
                         onChangeText={setName}
+                        placeholder="Tên"
                     />
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, styles.disabledInput]}
                         value={email}
                         onChangeText={setEmail}
                         keyboardType="email-address"
+                        placeholder="Email"
+                        editable={false}
                     />
                     <TextInput
                         style={styles.input}
                         value={address}
                         onChangeText={setAddress}
+                        placeholder="Địa chỉ"
                     />
                     <TextInput
                         style={styles.input}
                         value={phone}
                         onChangeText={setPhone}
                         keyboardType="phone-pad"
+                        placeholder="Số điện thoại"
                     />
                 </View>
 
-                {/* Extra padding at the bottom to avoid overlap with the button */}
                 <View style={{ height: 100 }} />
             </ScrollView>
 
-            {/* Save Button - Fixed at Bottom */}
+            {/* Save Button */}
             <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.saveButton}>
+                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                     <Text style={styles.buttonText}>LƯU THÔNG TIN</Text>
                 </TouchableOpacity>
             </View>
@@ -87,7 +223,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         backgroundColor: '#f5f5f5',
-        paddingTop: 40, // Space for status bar
+        paddingTop: 40,
     },
     headerTitle: {
         fontSize: 18,
@@ -107,7 +243,15 @@ const styles = StyleSheet.create({
     avatar: {
         width: 80,
         height: 80,
-        borderRadius: 40, // Circular avatar
+        borderRadius: 40,
+    },
+    editIcon: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: '#28a745',
+        borderRadius: 12,
+        padding: 4,
     },
     section: {
         backgroundColor: '#fff',
@@ -128,6 +272,10 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         fontSize: 16,
         backgroundColor: '#fff',
+    },
+    disabledInput: {
+        backgroundColor: '#f0f0f0',
+        color: '#666',
     },
     buttonContainer: {
         padding: 16,
