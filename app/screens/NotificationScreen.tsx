@@ -1,33 +1,74 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Sử dụng icon từ Expo
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, SafeAreaView, TouchableOpacity, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { db } from '../firebaseConfig';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from "@react-navigation/stack";
 
-const NotificationScreen: React.FC = () => {
-    return (
-        <SafeAreaView style={styles.container}>
-            {/* Nút quay lại */}
-            <TouchableOpacity style={styles.backButton}>
-                <Ionicons name="chevron-back" size={24} color="black" />
-            </TouchableOpacity>
+type RootStackParamList = {
+    HomeScreen: undefined;
+    NotificationScreen: { orderId: string };
+};
 
-            {/* Tiêu đề */}
-            <Text style={styles.title}>THÔNG BÁO</Text>
+type NavigationProp = StackNavigationProp<RootStackParamList, "NotificationScreen">;
 
-            {/* Nội dung thông báo */}
-            <View style={styles.notificationContainer}>
-                <Text style={styles.date}>Thứ tư, 03/09/2021</Text>
-                <View style={styles.notificationContent}>
+interface Notification {
+    id: string;
+    title: string;
+    subtitle: string;
+    detail: string;
+    date: string;
+    image: string;
+}
+
+const NotificationListScreen: React.FC = () => {
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const navigation = useNavigation<NavigationProp>();
+
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'notifications'), (snapshot) => {
+            const notificationList: Notification[] = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            })) as Notification[];
+            setNotifications(notificationList);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const renderNotification = ({ item }: { item: Notification }) => (
+        <TouchableOpacity
+            style={styles.notificationContent}
+        >
+            <Text style={styles.date}>{item.date}</Text>
+            <View style={styles.notificationItem}>
+                <View style={styles.contentWrapper}>
                     <Image
-                        source={{ uri: 'https://via.placeholder.com/80' }} // Thay bằng URL hình ảnh thực tế
-                        style={styles.plantImage}
+                        source={{ uri: item.image }}
+                        style={styles.notificationImage}
+                        onError={(e) => console.log('Image load error:', e.nativeEvent.error)}
                     />
                     <View style={styles.textContainer}>
-                        <Text style={styles.notificationTitle}>Đặt hàng thành công</Text>
-                        <Text style={styles.notificationSubtitle}>Spider Plant | Lớn</Text>
-                        <Text style={styles.notificationDetail}>2 sản phẩm</Text>
+                        <Text style={styles.notificationTitle}>{item.title}</Text>
+                        <Text style={styles.notificationSubtitle}>{item.subtitle}</Text>
+                        <Text style={styles.notificationDetail}>{item.detail}</Text>
                     </View>
                 </View>
             </View>
+        </TouchableOpacity>
+    );
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <Text style={styles.title}>THÔNG BÁO</Text>
+            <FlatList
+                data={notifications}
+                renderItem={renderNotification}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.listContainer}
+            />
         </SafeAreaView>
     );
 };
@@ -37,39 +78,41 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#fff',
     },
-    backButton: {
-        padding: 15,
-    },
     title: {
         fontSize: 20,
         fontWeight: 'bold',
         textAlign: 'center',
-        marginVertical: 10,
+        marginVertical: 20,
     },
-    notificationContainer: {
-        marginHorizontal: 15,
+    listContainer: {
+        paddingHorizontal: 15,
+    },
+    notificationContent: {
         marginVertical: 10,
     },
     date: {
         fontSize: 14,
-        color: '#28a745', // Màu xanh lá giống trong hình
-        marginBottom: 10,
+        color: '#28a745',
+        marginBottom: 5,
     },
-    notificationContent: {
-        flexDirection: 'row',
+    notificationItem: {
         padding: 10,
         borderWidth: 1,
         borderColor: '#ddd',
         borderRadius: 10,
     },
-    plantImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 10,
+    contentWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    notificationImage: {
+        width: 60,
+        height: 60,
+        borderRadius: 8,
+        marginRight: 10,
     },
     textContainer: {
-        marginLeft: 10,
-        justifyContent: 'center',
+        flex: 1,
     },
     notificationTitle: {
         fontSize: 16,
@@ -87,4 +130,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default NotificationScreen;
+export default NotificationListScreen;

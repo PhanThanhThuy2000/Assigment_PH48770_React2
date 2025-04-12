@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Image, StyleSheet, SafeAreaView, StatusBar, TouchableOpacity, FlatList } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // Sử dụng icon từ Expo
+import { Ionicons } from '@expo/vector-icons';
 
-// Định nghĩa kiểu dữ liệu cho Product
 interface Product {
     id: string;
     name: string;
@@ -18,17 +17,15 @@ const SearchScreen: React.FC = () => {
     const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // MockAPI URL
     const PRODUCTS_API = 'https://67e5137018194932a584633a.mockapi.io/products';
 
-    // Lấy dữ liệu sản phẩm từ mockAPI
     useEffect(() => {
         const fetchProducts = async () => {
             try {
                 const response = await fetch(PRODUCTS_API);
                 const data = await response.json();
                 setProducts(data);
-                setFilteredProducts(data); // Ban đầu hiển thị tất cả sản phẩm
+                setFilteredProducts(data);
             } catch (error) {
                 console.error('Error fetching products:', error);
             } finally {
@@ -38,7 +35,6 @@ const SearchScreen: React.FC = () => {
         fetchProducts();
     }, []);
 
-    // Lọc sản phẩm dựa trên searchText
     useEffect(() => {
         const filtered = products.filter(product =>
             product.name.toLowerCase().includes(searchText.toLowerCase())
@@ -46,18 +42,17 @@ const SearchScreen: React.FC = () => {
         setFilteredProducts(filtered);
     }, [searchText, products]);
 
-    // Hàm render từng sản phẩm trong kết quả tìm kiếm
     const renderProductItem = ({ item }: { item: Product }) => (
         <View style={styles.resultContainer}>
             <Image
-                source={{ uri: item.image || 'https://via.placeholder.com/80' }} // Dùng placeholder nếu không có ảnh
+                source={{ uri: item.image || 'https://via.placeholder.com/80' }}
                 style={styles.plantImage}
             />
             <View style={styles.resultTextContainer}>
                 <Text style={styles.plantName}>{item.name}</Text>
                 <Text style={styles.plantScientific}>{item.type}</Text>
                 <Text style={styles.plantPrice}>{item.price}</Text>
-                <Text style={styles.plantStock}>Còn hàng</Text> {/* Giả định còn hàng, có thể thêm field trong API */}
+                <Text style={styles.plantStock}>Còn hàng</Text>
             </View>
         </View>
     );
@@ -72,10 +67,8 @@ const SearchScreen: React.FC = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Thanh trạng thái */}
             <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-            {/* Header với thời gian và biểu tượng */}
             <View style={styles.header}>
                 <Text style={styles.time}>9:41</Text>
                 <View style={styles.icons}>
@@ -84,7 +77,6 @@ const SearchScreen: React.FC = () => {
                 </View>
             </View>
 
-            {/* Thanh tìm kiếm */}
             <View style={styles.searchContainer}>
                 <TouchableOpacity style={styles.backButton}>
                     <Ionicons name="chevron-back" size={24} color="black" />
@@ -100,12 +92,11 @@ const SearchScreen: React.FC = () => {
                 </TouchableOpacity>
             </View>
 
-            {/* Danh sách kết quả tìm kiếm */}
             <FlatList
                 data={filteredProducts}
                 renderItem={renderProductItem}
                 keyExtractor={(item) => item.id}
-                ListEmptyComponent={<Text style={styles.noResults}>Không tìm thấy sản phẩm</Text>} // Fixed here
+                ListEmptyComponent={<Text style={styles.noResults}>Không tìm thấy sản phẩm</Text>}
                 contentContainerStyle={styles.resultsList}
             />
         </SafeAreaView>

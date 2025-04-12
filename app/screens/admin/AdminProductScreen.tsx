@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import axios, { AxiosError } from "axios";
 import { Picker } from "@react-native-picker/picker";
+
 const API_URL = "https://67e5137018194932a584633a.mockapi.io/products";
 const CATEGORY_API_URL = "https://67e5137018194932a584633a.mockapi.io/categories";
 
@@ -32,6 +33,7 @@ type Category = {
 
 const AdminProductScreen = () => {
     const [products, setProducts] = useState<Product[]>([]);
+    const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
@@ -43,35 +45,58 @@ const AdminProductScreen = () => {
         image: "",
         categoryId: "",
     });
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isSorted, setIsSorted] = useState(false);
+    // Thêm state cho modal chi tiết
+    const [detailModalVisible, setDetailModalVisible] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
     useEffect(() => {
         fetchData();
         fetchCategories();
     }, []);
 
-    // Lấy danh sách sản phẩm từ API
     const fetchData = async () => {
         try {
             const response = await axios.get<Product[]>(API_URL);
             setProducts(response.data);
+            setFilteredProducts(response.data);
         } catch (error) {
-            console.error("Lỗi API:", error);
+            console.error("API Error:", error);
         } finally {
             setLoading(false);
         }
     };
 
-    // Lấy danh mục sản phẩm từ API
     const fetchCategories = async () => {
         try {
             const response = await axios.get<Category[]>(CATEGORY_API_URL);
             setCategories(response.data);
         } catch (error) {
-            console.error("Lỗi khi lấy danh mục:", error);
+            console.error("Error fetching categories:", error);
         }
     };
 
-    // Mở modal (chỉnh sửa hoặc thêm mới)
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
+        if (query.trim() === "") {
+            setFilteredProducts(products);
+        } else {
+            const filtered = products.filter((product) =>
+                product.name.toLowerCase().includes(query.toLowerCase())
+            );
+            setFilteredProducts(filtered);
+        }
+    };
+
+    const handleSort = () => {
+        const sorted = [...filteredProducts].sort((a, b) =>
+            a.name.localeCompare(b.name)
+        );
+        setFilteredProducts(sorted);
+        setIsSorted(true);
+    };
+
     const handleOpenDialog = (product: Product | null = null) => {
         if (product) {
             setEditingProduct(product);
@@ -83,10 +108,9 @@ const AdminProductScreen = () => {
         setModalVisible(true);
     };
 
-    // Lưu sản phẩm (Thêm mới hoặc chỉnh sửa)
     const handleSave = async () => {
         if (!productData.name || !productData.price || !productData.categoryId) {
-            Alert.alert("Lỗi", "Vui lòng nhập đầy đủ thông tin sản phẩm!");
+            Alert.alert("Error", "Please fill in all required fields!");
             return;
         }
 
@@ -96,36 +120,29 @@ const AdminProductScreen = () => {
             } else {
                 await axios.post(API_URL, productData);
             }
-            fetchData(); // Cập nhật danh sách sau khi lưu
+            fetchData();
             setModalVisible(false);
         } catch (error) {
-            console.error("Lỗi khi lưu sản phẩm:", error);
+            console.error("Error saving product:", error);
         }
     };
 
-
-    // HÀM XÓA
     const handleDelete = async (product: Product) => {
-        Alert.alert("Xác nhận xóa", "Bạn có chắc chắn muốn xóa sản phẩm này không?", [
-            { text: "Hủy", style: "cancel" },
+        Alert.alert("Confirm Delete", "Are you sure you want to delete this product?", [
+            { text: "Cancel", style: "cancel" },
             {
-                text: "Xóa",
+                text: "Delete",
                 onPress: async () => {
                     try {
-                        console.log("Đang xóa sản phẩm có ID:", product.id);
-                        console.log("Đường dẫn API:", `https://67e5137018194932a584633a.mockapi.io/categories/${product.categoryId}/products/${product.id}`);
-
                         await axios.delete(`https://67e5137018194932a584633a.mockapi.io/categories/${product.categoryId}/products/${product.id}`);
-
-                        fetchData(); // Cập nhật danh sách sau khi lưu
-
+                        fetchData();
                     } catch (error) {
                         const axiosError = error as AxiosError;
                         if (axiosError.response?.status === 404) {
-                            Alert.alert("Lỗi", "Sản phẩm không tồn tại hoặc đã bị xóa!");
+                            Alert.alert("Error", "Product not found or already deleted!");
                         } else {
-                            console.error("Lỗi khi xóa sản phẩm:", error);
-                            Alert.alert("Lỗi", "Không thể xóa sản phẩm, vui lòng thử lại sau.");
+                            console.error("Error deleting product:", error);
+                            Alert.alert("Error", "Failed to delete product, please try again.");
                         }
                     }
                 },
@@ -134,16 +151,41 @@ const AdminProductScreen = () => {
         ]);
     };
 
+    // Hàm xử lý hiển thị chi tiết sản phẩm
+    const  handleShowDetails = (product: Product) => {
+        setSelectedProduct(product);
+        setDetailModalVisible(true);
+    };
+
+    // Hàm lấy tên danh mục dựa trên categoryId
+    const getCategoryName = (categoryId: string) => {
+        const category = categories.find(cat => cat.id === categoryId);
+        return category ? category.name : "Không xác định";
+    };
 
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Quản lý sản phẩm</Text>
 
+            <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={handleSearch}
+                placeholder="Tìm kiếm sản phẩm theo tên..."
+            />
+
+            <TouchableOpacity style={styles.sortButton} onPress={handleSort}>
+                <Text style={styles.sortButtonText}>Sắp xếp A-Z</Text>
+            </TouchableOpacity>
+
             <FlatList
-                data={products}
+                data={filteredProducts}
                 keyExtractor={(item) => String(item.id)}
                 renderItem={({ item }) => (
-                    <View style={styles.productItem}>
+                    <TouchableOpacity
+                        style={styles.productItem}
+                        onPress={() => handleShowDetails(item)}
+                    >
                         <Image source={{ uri: item.image }} style={styles.productImage} />
                         <View style={styles.productInfo}>
                             <Text style={styles.name}>{item.name}</Text>
@@ -151,14 +193,20 @@ const AdminProductScreen = () => {
                             <Text style={styles.description}>{item.type}</Text>
                         </View>
                         <View style={styles.actions}>
-                            <TouchableOpacity style={styles.editButton} onPress={() => handleOpenDialog(item)}>
+                            <TouchableOpacity
+                                style={styles.editButton}
+                                onPress={() => handleOpenDialog(item)}
+                            >
                                 <Text style={styles.buttonText}>Sửa</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item)}>
+                            <TouchableOpacity
+                                style={styles.deleteButton}
+                                onPress={() => handleDelete(item)}
+                            >
                                 <Text style={styles.buttonText}>Xóa</Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 )}
             />
 
@@ -166,7 +214,7 @@ const AdminProductScreen = () => {
                 <Text style={styles.addButtonText}>Thêm sản phẩm</Text>
             </TouchableOpacity>
 
-            {/* Modal Thêm/Sửa Sản phẩm */}
+            {/* Modal for Add/Edit Product */}
             <Modal visible={modalVisible} animationType="slide" transparent>
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
@@ -196,8 +244,9 @@ const AdminProductScreen = () => {
                             value={productData.image}
                             onChangeText={(text) => setProductData({ ...productData, image: text })}
                             placeholder="Link ảnh sản phẩm"
+                            numberOfLines={1}
+                            multiline={false}
                         />
-                        {/* Dropdown chọn danh mục */}
                         <Picker
                             selectedValue={productData.categoryId}
                             onValueChange={(itemValue: string) =>
@@ -215,6 +264,43 @@ const AdminProductScreen = () => {
                     </View>
                 </View>
             </Modal>
+
+            {/* Modal for Product Details */}
+            <Modal visible={detailModalVisible} animationType="slide" transparent>
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Chi tiết sản phẩm</Text>
+                        {selectedProduct && (
+                            <View style={styles.detailContainer}>
+                                <Image
+                                    source={{ uri: selectedProduct.image }}
+                                    style={styles.detailImage}
+                                />
+                                <Text style={styles.detailText}>
+                                    <Text style={styles.detailLabel}>Tên:</Text> {selectedProduct.name}
+                                </Text>
+                                <Text style={styles.detailText}>
+                                    <Text style={styles.detailLabel}>Giá:</Text> {selectedProduct.price} VNĐ
+                                </Text>
+                                <Text style={styles.detailText}>
+                                    <Text style={styles.detailLabel}>Mô tả:</Text> {selectedProduct.type}
+                                </Text>
+                                <Text style={styles.detailText}>
+                                    <Text style={styles.detailLabel}>Danh mục:</Text> {getCategoryName(selectedProduct.categoryId)}
+                                </Text>
+                                <Text style={styles.detailText}>
+                                    <Text style={styles.detailLabel}>ID:</Text> {selectedProduct.id}
+                                </Text>
+                            </View>
+                        )}
+                        <Button
+                            title="Đóng"
+                            color="red"
+                            onPress={() => setDetailModalVisible(false)}
+                        />
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -222,7 +308,33 @@ const AdminProductScreen = () => {
 const styles = StyleSheet.create({
     container: { flex: 1, padding: 20, backgroundColor: "#f5f5f5" },
     title: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginBottom: 15 },
-    productItem: { flexDirection: "row", backgroundColor: "#fff", padding: 10, marginBottom: 10, borderRadius: 10 },
+    searchInput: {
+        borderWidth: 1,
+        borderColor: "#ccc",
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 10,
+        backgroundColor: "#fff",
+    },
+    sortButton: {
+        backgroundColor: "#007bff",
+        padding: 12,
+        borderRadius: 8,
+        alignItems: "center",
+        marginBottom: 10,
+    },
+    sortButtonText: {
+        color: "#fff",
+        fontWeight: "bold",
+        fontSize: 16,
+    },
+    productItem: {
+        flexDirection: "row",
+        backgroundColor: "#fff",
+        padding: 10,
+        marginBottom: 10,
+        borderRadius: 10
+    },
     productImage: { width: 80, height: 80, borderRadius: 10, marginRight: 10 },
     productInfo: { flex: 6 },
     name: { fontSize: 18, fontWeight: "bold" },
@@ -230,15 +342,15 @@ const styles = StyleSheet.create({
     description: { fontSize: 14, color: "#555", marginTop: 5 },
     actions: {
         flex: 2,
-        alignItems: "center", // Căn giữa nút trong hàng
-        justifyContent:"space-around"
+        alignItems: "center",
+        justifyContent: "space-around",
     },
     editButton: {
         backgroundColor: "#FFA500",
-        paddingVertical: 6,  // Giảm chiều cao
-        paddingHorizontal: 10, // Giảm chiều rộng
+        paddingVertical: 6,
+        paddingHorizontal: 10,
         borderRadius: 5,
-        minWidth: 60, // Đặt kích thước tối thiểu
+        minWidth: 60,
         alignItems: "center",
     },
     deleteButton: {
@@ -252,14 +364,62 @@ const styles = StyleSheet.create({
     buttonText: {
         color: "#fff",
         fontWeight: "bold",
-        fontSize: 14, // Giảm font chữ
+        fontSize: 14,
     },
-    addButton: { backgroundColor: "#008000", padding: 12, borderRadius: 8, alignItems: "center", marginTop: 10 },
+    addButton: {
+        backgroundColor: "#008000",
+        padding: 12,
+        borderRadius: 8,
+        alignItems: "center",
+        marginTop: 10
+    },
     addButtonText: { color: "#fff", fontWeight: "bold" },
-    modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" },
-    modalContent: { width: "90%", backgroundColor: "#fff", padding: 20, borderRadius: 10 },
-    modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 15, textAlign: "center" },
-    input: { borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 8, marginBottom: 10, width: "100%" },
+    modalContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "rgba(0,0,0,0.5)"
+    },
+    modalContent: {
+        width: "90%",
+        backgroundColor: "#fff",
+        padding: 20,
+        borderRadius: 10
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        marginBottom: 15,
+        textAlign: "center"
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: "#ccc",
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 10,
+        width: "100%"
+    },
+    // Thêm styles cho modal chi tiết
+    detailContainer: {
+        alignItems: "center",
+        marginBottom: 20,
+    },
+    detailImage: {
+        width: 200,
+        height: 200,
+        borderRadius: 10,
+        marginBottom: 15,
+    },
+    detailText: {
+        fontSize: 16,
+        marginBottom: 8,
+        width: "100%",
+    },
+    detailLabel: {
+        fontWeight: "bold",
+        color: "#333",
+    },
 });
 
 export default AdminProductScreen;

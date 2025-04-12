@@ -9,7 +9,7 @@ type RootParamList = {
     Login: undefined;
     SignUp: undefined;
     app: undefined;
-    Payment: { selectedItems: CartItem[] }; // Updated to include params
+    Payment: { selectedItems: CartItem[] };
 };
 
 type NavigationProp = StackNavigationProp<RootParamList, 'Login'>;
@@ -31,13 +31,11 @@ const CartScreen: React.FC = () => {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Fetch dữ liệu từ API khi component mount
     useEffect(() => {
         const fetchCartData = async () => {
             try {
                 const cartsResponse = await fetch("https://67e5137018194932a584633a.mockapi.io/carts");
                 const cartsData = await cartsResponse.json();
-                console.log("Raw carts data:", cartsData); // Debug log
 
                 const productsResponse = await fetch("https://67e5137018194932a584633a.mockapi.io/products");
                 const productsData = await productsResponse.json();
@@ -45,9 +43,8 @@ const CartScreen: React.FC = () => {
                 const combinedData: CartItem[] = cartsData.map((cart: any) => {
                     const product = productsData.find((p: any) => p.id === cart.productId);
                     if (product) {
-                        // Safely parse quantity
                         const rawQuantity = cart.quantity;
-                        let quantity = 1; // Giá trị mặc định
+                        let quantity = 1;
                         if (typeof rawQuantity === "string") {
                             quantity = parseInt(rawQuantity.replace("quantity ", "")) || 1;
                         } else if (typeof rawQuantity === "number") {
@@ -93,33 +90,19 @@ const CartScreen: React.FC = () => {
     const removeItem = async (id: string) => {
         try {
             const itemToDelete = cartItems.find((item) => item.id === id);
-            if (!itemToDelete) {
-                console.error(`Item with id ${id} not found in cartItems`);
-                return;
-            }
+            if (!itemToDelete) return;
 
             const { categoryId, productId } = itemToDelete;
-
             const response = await fetch(
                 `https://67e5137018194932a584633a.mockapi.io/categories/${categoryId}/products/${productId}/carts/${id}`,
-                {
-                    method: "DELETE",
-                }
+                { method: "DELETE" }
             );
 
             if (response.ok) {
                 setCartItems((prevItems) => prevItems.filter((item) => item.id !== id));
-                console.log(`Item ${id} deleted successfully from API`);
-            } else {
-                const errorText = await response.text();
-                console.error(`Failed to delete item ${id} from API. Status: ${response.status}, Message: ${errorText}`);
-                if (response.status === 404) {
-                    setCartItems((prevItems) => prevItems.filter((item) => item.id !== id));
-                    console.log(`Item ${id} not found on API, removed from local state`);
-                }
             }
         } catch (error) {
-            console.error("Error deleting item from API:", error instanceof Error ? error.message : error);
+            console.error("Error deleting item:", error);
         }
     };
 
@@ -128,17 +111,9 @@ const CartScreen: React.FC = () => {
             "Bạn có chắc chắn muốn xóa không?",
             "Thao tác này sẽ không thể khôi phục.",
             [
-                {
-                    text: "Hủy",
-                    style: "cancel",
-                },
-                {
-                    text: "Đồng ý",
-                    style: "destructive",
-                    onPress: () => removeItem(id),
-                },
-            ],
-            { cancelable: true }
+                { text: "Hủy", style: "cancel" },
+                { text: "Đồng ý", style: "destructive", onPress: () => removeItem(id) },
+            ]
         );
     };
 
@@ -160,9 +135,8 @@ const CartScreen: React.FC = () => {
             );
             await Promise.all(deletePromises);
             setCartItems([]);
-            console.log("Cart cleared successfully");
         } catch (error) {
-            console.error("Error clearing cart:", error instanceof Error ? error.message : error);
+            console.error("Error clearing cart:", error);
             setCartItems([]);
         }
     };
@@ -172,25 +146,33 @@ const CartScreen: React.FC = () => {
             "Xác nhận xóa tất cả đơn hàng?",
             "Thao tác này sẽ không thể khôi phục.",
             [
-                {
-                    text: "Hủy bỏ",
-                    style: "cancel",
-                },
-                {
-                    text: "Đồng ý",
-                    style: "destructive",
-                    onPress: clearCart,
-                },
-            ],
-            { cancelable: true }
+                { text: "Hủy bỏ", style: "cancel" },
+                { text: "Đồng ý", style: "destructive", onPress: clearCart },
+            ]
         );
     };
 
-    const handlePayment = () => {
+    const handlePayment = async () => {
         const selectedItems = cartItems.filter(item => item.checked);
 
         if (selectedItems.length === 0) {
             Alert.alert("Thông báo", "Vui lòng chọn ít nhất một sản phẩm để thanh toán");
+            return;
+        }
+
+        try {
+            const deletePromises = selectedItems.map((item) =>
+                fetch(
+                    `https://67e5137018194932a584633a.mockapi.io/categories/${item.categoryId}/products/${item.productId}/carts/${item.id}`,
+                    { method: "DELETE" }
+                )
+            );
+            await Promise.all(deletePromises);
+
+            setCartItems(prevItems => prevItems.filter(item => !item.checked));
+        } catch (error) {
+            console.error("Error deleting items from cart:", error);
+            Alert.alert("Lỗi", "Không thể xóa sản phẩm khỏi giỏ hàng. Vui lòng thử lại.");
             return;
         }
 
@@ -207,7 +189,6 @@ const CartScreen: React.FC = () => {
 
     return (
         <View style={{ flex: 1, backgroundColor: "#fff", padding: 16 }}>
-            {/* Header */}
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Icon name="arrow-left" size={24} color="black" />
@@ -218,13 +199,11 @@ const CartScreen: React.FC = () => {
                 </TouchableOpacity>
             </View>
 
-            {/* Cart List */}
             <FlatList
                 data={cartItems}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                     <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 12 }}>
-                        {/* Checkbox */}
                         <BouncyCheckbox
                             isChecked={item.checked}
                             onPress={() => toggleCheck(item.id)}
@@ -236,27 +215,19 @@ const CartScreen: React.FC = () => {
                                 borderColor: "black",
                                 backgroundColor: item.checked ? "black" : "white",
                             }}
-                            innerIconStyle={{
-                                borderRadius: 4,
-                            }}
+                            innerIconStyle={{ borderRadius: 4 }}
                             useBuiltInState={false}
                         />
-
-                        {/* Product Image */}
                         <Image
                             source={{ uri: item.image }}
                             style={{ width: 60, height: 60, borderRadius: 8, marginLeft: 10 }}
                         />
-
-                        {/* Product Info */}
                         <View style={{ flex: 1, marginLeft: 10 }}>
                             <Text style={{ fontSize: 16, fontWeight: "bold", color: "black" }}>{item.name}</Text>
                             <Text style={{ color: "green", fontSize: 16, fontWeight: "bold" }}>
                                 {item.price.toLocaleString()}đ
                             </Text>
                         </View>
-
-                        {/* Quantity Controls */}
                         <View style={{ flexDirection: "row", alignItems: "center" }}>
                             <TouchableOpacity onPress={() => updateQuantity(item.id, "decrease")}>
                                 <Icon name="minus-square" size={24} color="black" />
@@ -266,8 +237,6 @@ const CartScreen: React.FC = () => {
                                 <Icon name="plus-square" size={24} color="black" />
                             </TouchableOpacity>
                         </View>
-
-                        {/* Remove Item */}
                         <TouchableOpacity onPress={() => showDeleteItemConfirmation(item.id)} style={{ marginLeft: 10 }}>
                             <Text style={{ color: "black", textDecorationLine: "underline" }}>Xoá</Text>
                         </TouchableOpacity>
@@ -275,9 +244,7 @@ const CartScreen: React.FC = () => {
                 )}
             />
 
-            {/* Thanh toán */}
             <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: "white" }}>
-                {/* Tạm tính - Only for checked items */}
                 <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
                     <Text style={{ color: "gray", fontSize: 14 }}>Tạm tính</Text>
                     <Text style={{ fontSize: 16, fontWeight: "bold" }}>
@@ -287,8 +254,6 @@ const CartScreen: React.FC = () => {
                             .toLocaleString()}đ
                     </Text>
                 </View>
-
-                {/* Nút Thanh Toán */}
                 <TouchableOpacity
                     onPress={handlePayment}
                     style={{

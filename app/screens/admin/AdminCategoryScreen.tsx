@@ -1,74 +1,115 @@
-import React, { useEffect, useState } from "react"; //React và các Hook như useEffect, useState để quản lý trạng thái.
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, FlatList, Modal, Button, TextInput, Alert, } from "react-native"; //giúp xây dựng UI.
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Modal, Button, TextInput, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import axios from "axios"; //Dùng để gọi API lấy dữ liệu
+import axios from "axios";
+
 type RootStackParamList = {
     Category: undefined;
     Product: undefined;
 };
-//  Khai báo kiểu dữ liệu 
+
 type Categories = {
     id: number;
     name: string;
-}
+};
+
 const AdminCategoryScreen = () => {
-    //const [Biến state chứa danh sách, Hàm dùng để cập nhật giá trị] = mảng rỗng<kiểu dữ liệu[]>([]);
-    const [categories, setcategories] = useState<Categories[]>([]); 
-    // const [dữ liệu của danh chỉnh sửa, Hàm cập nhật giá trị ] = useState<Categories | null>(null);
-    const [editingCategories, setEditingCategories] = useState<Categories | null>(null); 
-    const [loading, setLoading] = useState(true); // tải dữ liệu api
-    const [modalVisible, setModalVisible] = useState(false); // hiện model .mặc định đang ẩn
-
-    // Lưu thông tin nhập vào
+    const [categories, setCategories] = useState<Categories[]>([]);
+    const [filteredCategories, setFilteredCategories] = useState<Categories[]>([]);
+    const [editingCategories, setEditingCategories] = useState<Categories | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [modalVisible, setModalVisible] = useState(false);
     const [nameCategories, setNameCategories] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
 
-    // Khi khi component được render lần đầu tiên sẽ gọi fetchData();
     useEffect(() => {
         fetchData();
     }, []);
 
-    // HÀM HIỂN THỊ
-    const fetchData = async () => { //gọi API mà không làm ứng dụng bị đơ
+    const fetchData = async () => {
         try {
-            //Sử dụng Axios để gửi một request GET đến API MockAPI.
-            // await đảm bảo rằng React đợi cho đến khi API phản hồi trước khi tiếp tục thực thi code.
-            const response = await axios.get<Categories[]>( //Categories[] kiểu dữ liệu đã khai báo ở trên
+            const response = await axios.get<Categories[]>(
                 "https://67e5137018194932a584633a.mockapi.io/categories"
             );
-            setcategories(response.data); //Sau khi nhận được dữ liệu từ API, ta cập nhật state categories bằng dữ liệu từ API.
+            setCategories(response.data);
+            setFilteredCategories(response.data);
         } catch (error) {
-            console.error("API Error:", error); // thông báo lỗi
+            console.error("API Error:", error);
         } finally {
-            setLoading(false); // luôn load lại dữ liệu cho dù api trả về thành công hay thất bại
+            setLoading(false);
         }
     };
-    // HÀM LƯU DƯ LIỆU
+
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
+        if (query.trim() === "") {
+            setFilteredCategories(categories);
+        } else {
+            const filtered = categories.filter((category) =>
+                category.name.toLowerCase().includes(query.toLowerCase())
+            );
+            setFilteredCategories(filtered);
+        }
+    };
+
+    const handleSort = () => {
+        const sortedCategories = [...filteredCategories].sort((a, b) =>
+            a.name.localeCompare(b.name)
+        );
+        setFilteredCategories(sortedCategories);
+    };
+
+    const validateCategoryName = (name: string): { isValid: boolean; errorMessage: string } => {
+        // Check if name is empty
+        if (!name.trim()) {
+            return { isValid: false, errorMessage: "Tên danh mục không được để trống." };
+        }
+
+        // Check length (minimum 2 characters, maximum 50 characters)
+        if (name.length < 2) {
+            return { isValid: false, errorMessage: "Tên danh mục phải có ít nhất 2 ký tự." };
+        }
+        if (name.length > 50) {
+            return { isValid: false, errorMessage: "Tên danh mục không được vượt quá 50 ký tự." };
+        }
+
+        // Check for valid characters (letters, numbers, spaces, and basic punctuation)
+        const validNameRegex = /^[a-zA-Z0-9\sÀ-ỹ]*$/;
+        if (!validNameRegex.test(name)) {
+            return { isValid: false, errorMessage: "Tên danh mục chỉ được chứa chữ cái, số và khoảng trắng." };
+        }
+
+        return { isValid: true, errorMessage: "" };
+    };
+
     const handleSave = async () => {
-        if (!nameCategories) return;
+        // Validate the category name
+        const validation = validateCategoryName(nameCategories);
+        if (!validation.isValid) {
+            Alert.alert("Lỗi nhập liệu", validation.errorMessage);
+            return;
+        }
 
         try {
             if (editingCategories) {
-                // Gửi yêu cầu cập nhật danh mục
                 await axios.put(`https://67e5137018194932a584633a.mockapi.io/categories/${editingCategories.id}`, {
-                    name: nameCategories,
+                    name: nameCategories.trim(), // Trim to remove extra spaces
                 });
-
             } else {
-                // Gửi yêu cầu tạo danh mục mới
                 await axios.post("https://67e5137018194932a584633a.mockapi.io/categories", {
-                    name: nameCategories,
+                    name: nameCategories.trim(),
                 });
             }
-
-            fetchData(); // Gọi lại API để cập nhật danh sách
+            fetchData();
             setModalVisible(false);
+            setNameCategories(""); // Reset input after saving
         } catch (error) {
             console.error("Lỗi khi lưu danh mục:", error);
+            Alert.alert("Lỗi", "Không thể lưu danh mục. Vui lòng thử lại.");
         }
     };
 
-    // HÀM XÓA
     const handleDelete = async (id: number) => {
         Alert.alert("Xác nhận xóa", "Bạn có chắc chắn muốn xóa danh mục này không?", [
             { text: "Hủy", style: "cancel" },
@@ -77,34 +118,47 @@ const AdminCategoryScreen = () => {
                 onPress: async () => {
                     try {
                         await axios.delete(`https://67e5137018194932a584633a.mockapi.io/categories/${id}`);
-                        fetchData(); // Cập nhật danh sách sau khi xóa
+                        fetchData();
                     } catch (error) {
                         console.error("Lỗi khi xóa danh mục:", error);
+                        Alert.alert("Lỗi", "Không thể xóa danh mục. Vui lòng thử lại.");
                     }
                 },
                 style: "destructive",
             },
         ]);
     };
-    // HÀM HIỆN THỊ MODEL
-    const openDialog = (categories?: Categories) => { // tham số tùy chọn categories có kiểu Categories
-        if (categories) { // có giá trị thì hiểu là sửa 
-            setEditingCategories(categories);//Gán đối tượng vào state
-            setNameCategories(categories.name); //Lưu thông tin đang được chỉnh sửa
-        } else { // không có giá trị hiểu là xóa
+
+    const openDialog = (categories?: Categories) => {
+        if (categories) {
+            setEditingCategories(categories);
+            setNameCategories(categories.name);
+        } else {
             setEditingCategories(null);
             setNameCategories("");
         }
         setModalVisible(true);
     };
-    // UI
+
     return (
         <View style={styles.container}>
+            <Text style={styles.title}>Quản lý danh mục</Text>
+            <View style={styles.searchContainer}>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Tìm kiếm danh mục..."
+                    value={searchQuery}
+                    onChangeText={handleSearch}
+                />
+                <TouchableOpacity style={styles.sortButton} onPress={handleSort}>
+                    <Text style={styles.sortButtonText}>Sắp xếp A-Z</Text>
+                </TouchableOpacity>
+            </View>
             <FlatList
-                data={categories} //Lấy dữ liệu danh mục từ state categories.
-            keyExtractor={(item) => item.id.toString()} //huyển id thành chuỗi để React có thể nhận diện từng mục duy nhất.
-            renderItem={({ item }) => (
-                <View style={styles.userItem}>
+                data={filteredCategories}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                    <View style={styles.userItem}>
                         <View style={styles.userInfo}>
                             <Text style={styles.name}>{item.name}</Text>
                         </View>
@@ -132,14 +186,14 @@ const AdminCategoryScreen = () => {
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>
-                            {/* Nếu editingCategories là true, tiêu đề sẽ là "Sửa" (nghĩa là sửa đổi). */}
-                            {editingCategories ? "Sửa" : "Thêm"} 
+                            {editingCategories ? "Sửa" : "Thêm"}
                         </Text>
                         <TextInput
                             style={styles.input}
                             value={nameCategories}
                             onChangeText={setNameCategories}
-                            placeholder="Tên"
+                            placeholder="Tên danh mục"
+                            autoCapitalize="words" // Capitalize first letter of each word
                         />
                         <Button title="Lưu" onPress={handleSave} />
                         <Button title="Hủy" color="red" onPress={() => setModalVisible(false)} />
@@ -148,7 +202,7 @@ const AdminCategoryScreen = () => {
             </Modal>
         </View>
     );
-}
+};
 
 const styles = StyleSheet.create({
     container: {
@@ -158,10 +212,34 @@ const styles = StyleSheet.create({
         backgroundColor: "#f5f5f5",
     },
     title: {
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: "bold",
         textAlign: "center",
-        marginBottom: 10,
+        marginBottom: 15,
+        color: "#333",
+    },
+    searchContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 15,
+    },
+    searchInput: {
+        flex: 1,
+        backgroundColor: "#fff",
+        padding: 10,
+        borderRadius: 5,
+        borderWidth: 1,
+        borderColor: "#ccc",
+        marginRight: 10,
+    },
+    sortButton: {
+        backgroundColor: "#4682b4",
+        padding: 10,
+        borderRadius: 5,
+    },
+    sortButtonText: {
+        color: "#fff",
+        fontWeight: "bold",
     },
     addButton: {
         backgroundColor: "#008000",
@@ -198,10 +276,6 @@ const styles = StyleSheet.create({
     name: {
         fontSize: 18,
         fontWeight: "bold",
-    },
-    email: {
-        fontSize: 16,
-        color: "gray",
     },
     editButton: {
         backgroundColor: "#FFD700",
